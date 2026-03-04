@@ -1,0 +1,14 @@
+{
+    "name": "apicrumbs/core",
+    "description": "High-signal RAG context for PHP AI agents.",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "ApiCrumbs\\Core\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.0.1",
+        "guzzlehttp/guzzle": "^7.0"
+    }
+}
