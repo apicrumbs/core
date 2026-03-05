@@ -7,6 +7,7 @@ use ApiCrumbs\Core\Transformers\MarkdownTransformer;
 
 class ApiCrumbs
 {
+    /** @var ProviderInterface[] */
     protected array $providers = [];
 
     public function registerProvider(ProviderInterface $provider): self
@@ -15,12 +16,21 @@ class ApiCrumbs
         return $this;
     }
 
+    /**
+     * The Magic Method: Loops through all registered providers
+     * and returns a single, token-efficient Markdown string.
+     */
     public function build(string $id): string
     {
         $output = "";
         foreach ($this->providers as $provider) {
-            $data = $provider->fetchData($id);
-            $output .= MarkdownTransformer::toMarkdown($provider->getName(), $data);
+            try {
+                $data = $provider->fetchData($id);
+                $output .= MarkdownTransformer::toMarkdown($provider->getName(), $data);
+            } catch (\Exception $e) {
+                // Silently skip or log failed providers to keep the RAG prompt clean
+                continue;
+            }
         }
         return $output;
     }
