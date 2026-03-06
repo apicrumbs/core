@@ -9,4 +9,7 @@ interface ProviderInterface
 
     /** Fetch and return high-signal data as an associative array */
     public function fetchData(string $id): array;
+
+    /** Returns metadata about the source (URL, Data Freshness, etc.) */
+    public function getMetadata(): array;
 }
