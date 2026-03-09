@@ -36,11 +36,11 @@ class ApiCrumbs
             try {
                 // 1. Fetch data from the API via the Provider's internal Guzzle client
                 $data = $provider->fetchData($id);
-
+                echo 'HERE' . PHP_EOL;
                 if (empty($data)) continue;
-
+                print_r($data);
                 // 2. Transform the raw array to high-signal Markdown
-                $markdown = (new MarkdownTransformer())->transform(
+                $markdown = (new MarkdownTransformer())->toMarkdown(
                     $provider->getName(), 
                     $data
                 );

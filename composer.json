@@ -5,7 +5,8 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "ApiCrumbs\\Core\\": "src/"
+            "ApiCrumbs\\Core\\": "src/",
+            "ApiCrumbs\\Providers\\": "src/Providers/"
         }
     },
     "bin": [

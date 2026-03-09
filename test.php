@@ -2,7 +2,7 @@
 require 'vendor/autoload.php';
 
 use ApiCrumbs\Core\ApiCrumbs;
-use ApiCrumbs\Core\Providers\PostcodeProvider;
+use ApiCrumbs\Providers\Geo\PostcodeProvider;
 
 $engine = new ApiCrumbs();
 $engine->registerProvider(new PostcodeProvider());
