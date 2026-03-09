@@ -13,6 +13,6 @@ class MarkdownTransformer
             $key = str_replace('_', ' ', strtoupper($key));
             $md .= "- **{$key}**: {$val}" . PHP_EOL;
         }
-        return $md . "---" . PHP_EOL;
+        return $md;// . "---" . PHP_EOL;
     }
 }
