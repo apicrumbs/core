@@ -2,9 +2,9 @@
 <?php
 
 // DEV ONLY: 
-require __DIR__ . '/../vendor/autoload.php';
+//require __DIR__ . '/../vendor/autoload.php';
 // LIVE ONLY: 
-//require __DIR__ . '/../../../../vendor/autoload.php';
+require __DIR__ . '/../../../../vendor/autoload.php';
 
 $args = $argv;
 $command = $args[1] ?? 'help';
