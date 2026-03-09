@@ -91,6 +91,15 @@ class {$className} implements ProviderInterface
             'data' => []
         ];
     }
+
+    public function getMetadata(): array
+    {
+        return [
+            'source_url'  => 'https://...',
+            'reliability' => 'High',
+            'tier'        => 'Free'
+        ];
+    }
 }
 PHP;
     }

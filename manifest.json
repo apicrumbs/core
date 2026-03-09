@@ -1,0 +1,27 @@
+{
+    "marco2": {
+        "class": "ApiCrumbs\\Providers\\Custom\\Marco2Provider",
+        "tier": "custom",
+        "updated_at": "2026-03-09 21:41:56"
+    },
+    "marco": {
+        "class": "ApiCrumbs\\Providers\\Custom\\MarcoProvider",
+        "tier": "custom",
+        "updated_at": "2026-03-09 21:41:56"
+    },
+    "peter2": {
+        "class": "ApiCrumbs\\Providers\\Custom\\Peter2Provider",
+        "tier": "custom",
+        "updated_at": "2026-03-09 21:41:56"
+    },
+    "peter": {
+        "class": "ApiCrumbs\\Providers\\Custom\\PeterProvider",
+        "tier": "custom",
+        "updated_at": "2026-03-09 21:41:56"
+    },
+    "postcode": {
+        "class": "ApiCrumbs\\Providers\\Geo\\PostcodeProvider",
+        "tier": "geo",
+        "updated_at": "2026-03-09 21:41:56"
+    }
+}

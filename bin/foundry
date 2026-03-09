@@ -17,6 +17,9 @@ switch ($command) {
     case 'list':
         (new \ApiCrumbs\Core\Commands\ListCommand())->handle($args);
         break;
+    case 'linter':
+        (new \ApiCrumbs\Core\Commands\LinterCommand())->handle();
+        break;
     default:
         echo "\e[1;34m🍪 ApiCrumbs Foundry CLI\e[0m\n";
         echo "Usage: php foundry [command] [options]\n\n";
