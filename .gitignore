@@ -1,6 +1,7 @@
 composer.phar
 foundry-dev
 apicrumbs.log
+manifest.json
 test.php
 /vendor/
 /src/Providers/
