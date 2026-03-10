@@ -13,12 +13,20 @@ interface ProviderInterface
      */
     public function getDependencies(): array;
     
+    /** The current version of the provider (e.g., '1.0.0') */
+    public function getVersion(): string;
+
     /**
      * @param string $id The primary search term
      * @param array $context Data already collected by previous providers in the stack
      */
     public function fetchData(string $id, array $context = []): array;
 
-    /** Returns metadata about the source (URL, Data Freshness, etc.) */
-    public function getMetadata(): array;
+    /** 
+     * Converts raw array data into LLM-optimized strings.
+     * Use this to prune tokens, rename keys, or add system hints.
+     */
+    public function transform(array $data): string;
+
+    
 }

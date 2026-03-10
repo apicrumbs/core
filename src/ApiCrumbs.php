@@ -49,25 +49,12 @@ class ApiCrumbs
                 // Merge results into context so the NEXT provider can use it
                 $masterContext[$provider->getName()] = $data;
 
-                // 2. Transform the raw array to high-signal Markdown
-                $markdown = (new MarkdownTransformer())->toMarkdown(
-                    $provider->getName(), 
-                    $data
-                );
-
-                // 3. Ground the data with Metadata (Source, Reliability, Tier)
-                $output .= MetadataTransformer::wrap(
-                    $provider->getName(),
-                    $markdown,
-                    $provider->getMetadata()
-                );
+                // The Provider dictates its own Markdown structure
+                $output .= $provider->transform($data); 
 
             } catch (\Exception $e) {
-                // 1. Log the error internally for debugging
+                // Log the error internally for debugging
                 $this->logError($provider->getName(), $e->getMessage());
-                
-                // 2. Fail Silently: We do NOT append error messages to $output
-                // because the LLM might hallucinate based on the PHP error text.
                 continue;
             }
         }

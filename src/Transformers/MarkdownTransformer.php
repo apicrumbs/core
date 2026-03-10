@@ -2,6 +2,10 @@
 
 namespace ApiCrumbs\Core\Transformers;
 
+/**
+ * Usage
+ * $markdown = (new MarkdownTransformer())->toMarkdown($provider->getName(), $data);
+ **/
 class MarkdownTransformer
 {
     public static function toMarkdown(string $label, array $data): string

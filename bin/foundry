@@ -20,12 +20,16 @@ switch ($command) {
     case 'linter':
         (new \ApiCrumbs\Core\Commands\LinterCommand())->handle();
         break;
+    case 'update':
+        (new \ApiCrumbs\Core\Commands\UpdateCommand())->handle();
+        break;
     default:
         echo "\e[1;34m🍪 ApiCrumbs Foundry CLI\e[0m\n";
         echo "Usage: php foundry [command] [options]\n\n";
         echo "  \e[32mlist\e[0m             List all available 250+ providers\n";
         echo "  \e[32minstall [Path]\e[0m   Download a free provider\n";
         echo "  \e[32mlinter\e[0m           Checks providers architectural linting\n";
+        echo "  \e[32mupdate\e[0m           Synchronises local providers with the remote  providers\n";
         echo "  \e[32mmake [Name]\e[0m      Create a custom provider stub\n";
         break;
 }

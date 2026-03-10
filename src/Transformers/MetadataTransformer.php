@@ -2,6 +2,11 @@
 
 namespace ApiCrumbs\Core\Transformers;
 
+/**
+ * Usage
+ * $output .= MetadataTransformer::wrap($provider->getName(), $markdown, $provider->getMetadata());
+ **/
+
 class MetadataTransformer
 {
     /**
