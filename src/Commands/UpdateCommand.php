@@ -22,6 +22,7 @@ class UpdateCommand
         $localManifest = file_exists($localManifestPath) ? json_decode(file_get_contents($localManifestPath), true) : [];
 
         foreach ($remoteManifest as $id => $meta) {
+            print_r( $meta );
             $remoteVer = $meta['version'] ?? '1.0.0';
             $localVer  = $localManifest[$id]['version'] ?? '0.0.0';
 
