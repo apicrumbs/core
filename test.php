@@ -2,9 +2,10 @@
 require 'vendor/autoload.php';
 
 use ApiCrumbs\Core\ApiCrumbs;
-use ApiCrumbs\Providers\Geo\PostcodeIoProvider;
+use ApiCrumbs\Providers\Weather\OpenMeteoProvider;
 
-$engine = new ApiCrumbs();
-$engine->registerProvider(new PostcodeIoProvider($guzzleConfig = ['verify' => false]));
+$crumbs = new ApiCrumbs();
 
-echo $engine->build('SW1A     1AA');
+$crumbs->registerProvider(new OpenMeteoProvider(['verify' => 'C:\xampp8.2\php\extras\ssl\cacert.pem']));
+
+echo $crumbs->build('51.5074,-0.1278');
