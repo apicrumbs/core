@@ -4,72 +4,81 @@ namespace ApiCrumbs\Core\Commands;
 
 class UpdateCommand
 {
-    private string $remoteManifestUrl = 'https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json';
+    private string $registryUrl = 'https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json';
 
-    public function handle(): void
+    public function handle(array $args): void
     {
-        echo "📡 Syncing with Remote Registry...\n";
+        $isDryRun = in_array('--dry-run', $args);
+        echo $isDryRun ? "🔍 [DRY RUN] Comparing Registry...\n" : "📡 Syncing Registry...\n";
 
         // 1. Fetch Remote Manifest
-        $remoteManifest = json_decode(@file_get_contents($this->remoteManifestUrl), true);
-        if (!$remoteManifest) {
-            echo "\e[31m❌ Error: Registry unreachable.\e[0m\n";
+        $remoteJson = @file_get_contents($this->registryUrl);
+        if (!$remoteJson) {
+            echo "\e[31m❌ Error: Cannot reach remote registry manifest.\e[0m\n";
             return;
         }
+        $remoteManifest = json_decode($remoteJson, true);
 
-        // 2. Load Local State
-        $localManifestPath = getcwd() . '/manifest.json';
-        $localManifest = file_exists($localManifestPath) ? json_decode(file_get_contents($localManifestPath), true) : [];
+        // 2. Scan Local Providers
+        $localProviders = $this->scanLocalProviders();
 
-        foreach ($remoteManifest as $id => $meta) {
-            print_r( $meta );
-            $remoteVer = $meta['version'] ?? '1.0.0';
-            $localVer  = $localManifest[$id]['version'] ?? '0.0.0';
+        foreach ($remoteManifest['providers'] as $id => $meta) {
+            $remoteVer = $meta['version'];
+            $localVer = $localProviders[$id]['version'] ?? '0.0.0';
+            $targetPath = $this->resolvePath($meta['class']);
 
-            // 3. Version Check
+            // 3. Version Comparison
             if (version_compare($remoteVer, $localVer, '>')) {
-                echo "📦 Update Found: [{$id}] {$localVer} -> \e[32m{$remoteVer}\e[0m\n";
-                
-                $localPath = $this->resolvePath($meta['class']);
-                $this->installWithBackup($id, $meta['download_url'], $localPath, $remoteVer, $localManifest);
+                echo "📦 Update available for [\e[1m{$id}\e[0m]: {$localVer} -> \e[32m{$remoteVer}\e[0m\n";
+
+                if ($isDryRun) continue;
+
+                $this->performAtomicUpdate($id, $meta['download_url'], $targetPath, $remoteVer);
             }
         }
 
-        file_put_contents($localManifestPath, json_encode($localManifest, JSON_PRETTY_PRINT));
-        echo "\e[32m✨ Update cycle complete.\e[0m\n";
+        echo "\e[32m✨ Sync complete.\e[0m\n";
     }
 
-    private function installWithBackup(string $id, string $url, string $path, string $ver, array &$manifest): void
+    private function performAtomicUpdate($id, $url, $path, $version): void
     {
-        $backupPath = $path . '.bak';
-        $hasBackup = false;
+        $backup = $path . '.bak';
+        if (file_exists($path)) copy($path, $backup);
 
-        // Create Backup
-        if (file_exists($path)) {
-            copy($path, $backupPath);
-            $hasBackup = true;
-        }
+        echo "   📥 Downloading {$version}... ";
 
-        echo "   📥 Downloading update...";
-
-        // Attempt Download
         if (@copy($url, $path)) {
-            echo " \e[32mSuccess\e[0m\n";
-            $manifest[$id]['version'] = $ver;
-            if ($hasBackup) @unlink($backupPath); // Cleanup
+            echo "\e[32mDone\e[0m\n";
+            if (file_exists($backup)) unlink($backup);
         } else {
-            echo " \e[31mFailed\e[0m\n";
-            // Restore from Backup if download failed
-            if ($hasBackup) {
-                rename($backupPath, $path);
-                echo "   \e[33m⚠️  Restored from backup.\e[0m\n";
+            echo "\e[31mFailed\e[0m\n";
+            if (file_exists($backup)) {
+                rename($backup, $path);
+                echo "   \e[33mRestored from backup.\e[0m\n";
             }
         }
+    }
+
+    private function scanLocalProviders(): array
+    {
+        $found = [];
+        $dir = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(getcwd() . '/src/Providers'));
+        
+        foreach ($dir as $file) {
+            if (!$file->isFile() || !str_ends_with($file->getFilename(), 'Provider.php')) continue;
+            
+            // Reflect to get version without executing full API logic
+            $content = file_get_contents($file->getPathname());
+            if (preg_match("/public function getVersion\(\): string\s*{\s*return ['\"](.*?)['\"];\s*}/", $content, $matches)) {
+                $id = strtolower(str_replace('Provider.php', '', $file->getFilename()));
+                $found[$id] = ['version' => $matches[1]];
+            }
+        }
+        return $found;
     }
 
     private function resolvePath(string $class): string
     {
-        // Maps ApiCrumbs\Providers\Free\Name to src/Providers/Free/Name.php
         return str_replace(['ApiCrumbs\\', '\\'], ['src/', '/'], $class) . '.php';
     }
 }

@@ -23,5 +23,8 @@
         "class": "ApiCrumbs\\Providers\\Geo\\PostcodeProvider",
         "tier": "geo",
         "updated_at": "2026-03-09 21:41:56"
+    },
+    "1": {
+        "version": "1.0.1"
     }
 }

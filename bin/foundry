@@ -21,7 +21,7 @@ switch ($command) {
         (new \ApiCrumbs\Core\Commands\LinterCommand())->handle();
         break;
     case 'update':
-        (new \ApiCrumbs\Core\Commands\UpdateCommand())->handle();
+        (new \ApiCrumbs\Core\Commands\UpdateCommand())->handle($argv);
         break;
     default:
         echo "\e[1;34m🍪 ApiCrumbs Foundry CLI\e[0m\n";
