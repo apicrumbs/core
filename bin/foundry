@@ -26,6 +26,9 @@ switch ($command) {
     case 'logs':
         (new \ApiCrumbs\Core\Commands\LogsCommand())->handle($args);
         break;
+    case 'preview':
+        (new \ApiCrumbs\Core\Commands\PreviewCommand())->handle($args);
+        break;
     default:
         echo "\e[1;34m🍪 ApiCrumbs Foundry CLI\e[0m\n";
         echo "Usage: php foundry [command] [options]\n\n";
@@ -34,6 +37,7 @@ switch ($command) {
         echo "  \e[32mlinter\e[0m           Checks providers architectural linting\n";
         echo "  \e[32mupdate\e[0m           Synchronises local providers with the remote  providers\n";
         echo "  \e[32mlogs\e[0m             Diagnose the issues instantly\n";
+        echo "  \e[32mpreview\e[0m          Runs a single provider and dumps its transform() output\n";
         echo "  \e[32mmake [Name]\e[0m      Create a custom provider stub\n";
         break;
 }
