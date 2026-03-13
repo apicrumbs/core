@@ -3,55 +3,68 @@
 namespace ApiCrumbs\Core\Contracts;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
+/**
+ * BaseProvider - The Foundation for all API-based Crumbs.
+ * Handles XAMPP SSL fixes, Throttling, and Guzzle Orchestration.
+ */
 abstract class BaseProvider implements ProviderInterface
 {
-    protected array $caBundlePaths = [
-        'C:\xampp8.2\php\extras\ssl\cacert.pem',
-        'C:\xampp\php\extras\ssl\cacert.pem',
-    ];
-
     protected Client $client;
+    protected int $throttleMicros = 500000; // 0.5s default delay to respect API limits
 
-    public function __construct(array $guzzleConfig = [], array $caBundlePaths = [])
+    public function __construct(array $customConfig = [])
     {
-        // 1. Detect local SSL certificate for XAMPP/Windows environments
-        if ($caBundlePaths) {
-            $this->caBundlePaths = $caBundlePaths;
-        }
-        $caPath = $this->resolveCaBundle();
-
-        // 2. Merge user config with internal safety defaults
+        // 1. THE XAMPP FIX: Auto-detect local CA bundle from 'foundry setup:ssl'
+        $caPath = getcwd() . DIRECTORY_SEPARATOR . 'cacert.pem';
+        
         $defaultConfig = [
             'timeout' => 10.0,
-            'headers' => ['User-Agent' => 'ApiCrumbs-Foundry/1.0'],
-            'verify'  => $caPath ?: true, // Use detected path, otherwise default to system
+            'verify'  => file_exists($caPath) ? $caPath : true,
+            'headers' => [
+                'User-Agent' => 'ApiCrumbs-Foundry/1.0',
+                'Accept'     => 'application/json',
+            ]
         ];
 
-        $this->client = new Client(array_merge($defaultConfig, $guzzleConfig));
+        // 2. Initialise the Guzzle Client with merged configs
+        $this->client = new Client(array_merge($defaultConfig, $customConfig));
     }
 
     /**
-     * Finds the cacert.pem in common XAMPP/Windows locations
+     * Helper: Throttled GET request for Providers.
+     * Prevents "429 Too Many Requests" during complex Stitches.
      */
-    private function resolveCaBundle(): ?string
+    protected function safeFetch(string $url, array $options = []): array
     {
-        $paths = $this->caBundlePaths;
-        $paths[] = getcwd() . DIRECTORY_SEPARATOR . 'cacert.pem'; // Allow local project-level override
-
-        foreach ($paths as $path) {
-            if (file_exists($path)) return $path;
+        try {
+            // Respect the API heartbeat
+            usleep($this->throttleMicros);
+            
+            $response = $this->client->get($url, $options);
+            return json_decode($response->getBody()->getContents(), true) ?? [];
+            
+        } catch (GuzzleException $e) {
+            // Log to apicrumbs.log for 'foundry logs' to pick up
+            $this->logError($e->getMessage());
+            return [];
         }
+    }
 
-        return null;
+    private function logError(string $msg): void
+    {
+        $log = getcwd() . '/apicrumbs.log';
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($log, "[{$timestamp}] 🍪 CRUMB_FAIL: Provider [{$this->getName()}] -> {$msg}" . PHP_EOL, FILE_APPEND);
     }
 
     /**
-     * Throttled Guzzle Wrapper
+     * Default implementation of dependencies. 
+     * Specific providers (like Crime) will override this with ['geo_context'].
      */
-    public function safeFetch(string $url, array $options = []): array
+    public function getDependencies(): array
     {
-        $response = $this->client->get($url, $options);
-        return json_decode($response->getBody(), true) ?? [];
+        return [];
     }
 }

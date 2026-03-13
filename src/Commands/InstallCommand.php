@@ -2,64 +2,132 @@
 
 namespace ApiCrumbs\Core\Commands;
 
+use GuzzleHttp\Client;
+
+/**
+ * InstallCommand - The Unified Registry Installer
+ * Handles atomic downloads for Providers, Agents, and Drivers.
+ */
 class InstallCommand
 {
-    private string $registryBase = "https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main";
+    private string $manifestUrl = 'https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json';
+    private string $registryBase = "https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/";
+    private array $manifest = [];
+    private array $types = [
+        'provider' => 'provider',
+        'agent' => 'agent',
+        'driver' => 'driver',
+    ];
 
     public function handle(array $args): void
     {
-        $path = $args[2] ?? null;
-        
-        if (!$path) {
-            echo "\e[31m❌ Error: Provide a path (e.g. php foundry install weather/open-meteo)\e[0m\n";
-            exit(1);
+        $type = $args[2] ?? null; // provider | agent | driver
+        $id   = $args[3] ?? null;
+
+        if (!$type || !$id) {
+            echo "❌ \e[31mUsage: php foundry install [type] [id]\e[0m\n";
+            echo "Example: php foundry install agent finance/fiscal-auditor\n";
+            return;
         }
 
-        echo "\e[34m🔍 Checking Registry for [{$path}]...\e[0m\n";
-
-        // 1. Check Manifest for Tier
-        $manifestJson = @file_get_contents("{$this->registryBase}/manifest.json");
-        $manifest = json_decode($manifestJson, true);
-        
-        $provider = current(array_filter($manifest['providers'] ?? [], fn($p) => $p['id'] === $path));
-        
-        if (!$provider) {
-            echo "\e[31m❌ Error: Provider '{$path}' not found in registry.\e[0m\n";
-            exit(1);
+        if (!isset($this->types[$type])) {
+            echo "❌ \e[31mUsage: php foundry install [type] [id]\e[0m\n";
+            echo "Example: php foundry install agent finance/fiscal-auditor\n";
+            return;
         }
 
-        // 2. Enforce Pro Gate
-        if ($provider['tier'] === 'pro') {
-            echo "\e[1;33m🔒 This is a PRO Crumb.\e[0m\n";
-            echo "Unlock the \e[1m{$provider['pack']}\e[0m at: \e[4mhttps://github.com\e[0m\n";
-            exit(1);
+        $this->manifest = $this->fetchManifest();
+        
+        $this->install($type, $id);
+    }
+
+    private function install(string $type, string $id, bool $isDependency = false): void
+    {
+        // 1. Resolve Category (providers, agents, drivers)
+        $category = $this->resolveCategory($type);
+        $items = $this->manifest[$category] ?? null; 
+
+        if (!$items) {
+            echo "❌ \e[31mError: {$type} '{$id}' not found in registry.\e[0m\n";
+            return;
         }
 
-        $installPath = $provider['install_path'];
-        
-        // 3. Download and Install
-        $remoteUrl = "{$this->registryBase}/{$installPath}";
-        
-        $code = @file_get_contents($remoteUrl);
+        $manifestItem = false;
+        foreach ($items as $item) {
+            if ($id == $item['id']) {
+                $manifestItem = $item;
+                break;
+            }
+        } 
+
+        $item = $manifestItem;
+
+        if (!$item) {
+            echo "❌ \e[31mError: {$type} '{$id}' not found in registry.\e[0m\n";
+            return;
+        }
+
+        // 2. Sponsoware Tier Validation
+        if ($item['tier'] !== 'free' && empty(getenv('APICRUMBS_PRO_TOKEN'))) {
+            echo "🔐 \e[33mAccess Denied:\e[0m '{$id}' is a {$item['tier']} asset.\n";
+            echo "👉 Sponsor at https://github.com to unlock.\n";
+            return;
+        }
+
+        echo ($isDependency ? "  📦 " : "📥 ") . "Installing \e[1m{$item['name']}\e[0m (v{$item['version']})...\n";
+
+        // 3. Atomic Download & Save
+        $this->downloadFile($item);
+
+        // 4. Recursive Dependency Handling (For Agents)
+        if ($type === 'agent' && !empty($item['required_crumbs'])) {
+            echo "   🔗 Agent requires data crumbs. Auto-installing...\n";
+            foreach ($item['required_crumbs'] as $crumbId) {
+                $this->install('provider', $crumbId, true);
+            }
+        }
+
+        if (!$isDependency) {
+            echo "✨ \e[32mInstallation Complete!\e[0m\n";
+            echo "💡 Try it: \e[2mphp foundry preview " . basename($item['class']) . " {$item['example_id']}\e[0m\n";
+        }
+    }
+
+    private function fetchManifest(): array
+    {
+        $manifestJson = @file_get_contents("{$this->manifestUrl}");
+        return json_decode($manifestJson, true);
+    }
+
+    private function downloadFile(array $item): void
+    {
+        $targetPath = getcwd() . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $item['install_path']);
+        $dir = dirname($targetPath);
+
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+        // In a real Sponsoware setup, the Pro files would be fetched via a secure 
+        // proxy that validates the APICRUMBS_PRO_TOKEN header.        
+        $sourceUrl = $this->registryBase . $item['install_path'];
+        echo $sourceUrl . PHP_EOL;
+
+        $code = @file_get_contents($sourceUrl);
 
         if (!$code) {
             echo "\e[31m❌ Error: Failed to download source code.\e[0m\n";
             exit(1);
         }
 
-        $installPathParts = explode('/', $installPath);
-        
-        $localPath = getcwd() .'/'. $installPath;
-        
-        $directory = dirname($localPath);
+        file_put_contents($targetPath, $code);
+    }
 
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-        
-        if (file_put_contents($localPath, $code)) {
-            echo "\e[32m✅ Installed: {$provider['name']} Provider\e[0m\n";
-            echo "📍 Location: {$localPath}\n";
-        }
+    private function resolveCategory(string $type): string
+    {
+        return match($type) {
+            'provider' => 'providers',
+            'agent'    => 'agents',
+            'driver'   => 'drivers',
+            default    => 'providers'
+        };
     }
 }

@@ -4,10 +4,14 @@
 // LIVE ONLY: 
 require __DIR__ . '/../../../../vendor/autoload.php';
 
+
 $args = $argv;
 $command = $args[1] ?? 'help';
 
 switch ($command) {
+    case 'setup:ssl':
+        (new \ApiCrumbs\Core\Commands\SslSetupCommand())->handle();
+        break;
     case 'make':
         (new \ApiCrumbs\Core\Commands\MakeCommand())->handle($args);
         break;
@@ -29,15 +33,27 @@ switch ($command) {
     case 'preview':
         (new \ApiCrumbs\Core\Commands\PreviewCommand())->handle($args);
         break;
-    default:
-        echo "\e[1;34m🍪 ApiCrumbs Foundry CLI\e[0m\n";
-        echo "Usage: php foundry [command] [options]\n\n";
-        echo "  \e[32mlist\e[0m             List all available 250+ providers\n";
-        echo "  \e[32minstall [Path]\e[0m   Download a free provider\n";
-        echo "  \e[32mlinter\e[0m           Checks providers architectural linting\n";
-        echo "  \e[32mupdate\e[0m           Synchronises local providers with the remote  providers\n";
-        echo "  \e[32mlogs\e[0m             Diagnose the issues instantly\n";
-        echo "  \e[32mpreview\e[0m          Runs a single provider and dumps its transform() output\n";
-        echo "  \e[32mmake [Name]\e[0m      Create a custom provider stub\n";
+    case 'setup:all':
+        // The "Onboarding Master": Runs SSL, Env, and Doctor in sequence
+        (new SetupAllCommand())->handle();
         break;
+    default:
+        renderHelp();
+        break;
+}
+
+function renderHelp() 
+{
+    echo "\e[1;36m🍪 ApiCrumbs Foundry CLI\e[0m\n";
+    echo "Usage: php foundry [command] [options]\n\n";
+    echo "\e[1mOnboarding:\e[0m\n";
+    echo "  setup:all      Run full environment setup (SSL + .env + Doctor)\n";
+    echo "  setup:ssl      Solve the common ``URL error 60`` issue on Windows/XAMPP\n";
+    echo "  doctor         Check system health and XAMPP SSL status\n\n";
+    echo "\e[1mRegistry:\e[0m\n";
+    echo "  update         Sync local 'Crumbs' with remote Registry (--dry-run available)\n";
+    echo "  graph          View dependency lineage (--mermaid available)\n\n";
+    echo "\e[1mDevelopment:\e[0m\n";
+    echo "  make [Name]    Scaffold a new Provider (--csv|--pro flags available)\n";
+    echo "  linter         Validate architecture and key naming consistency\n";
 }
