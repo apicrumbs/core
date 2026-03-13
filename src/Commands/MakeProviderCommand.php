@@ -122,6 +122,16 @@ class {$class} extends CsvStreamProvider
             'val_column' => 'Value'
         ];
     }
+
+    public function transform(array \$data): string
+    {
+        if (empty(\$data)) return "";
+        \$output = "### DATA STREAM: " . strtoupper(\$this->getName()) . PHP_EOL;
+        foreach (\$data as \$row) {
+            \$output .= "- Item: " . (\$row['id'] ?? 'N/A') . PHP_EOL;
+        }
+        return \$output . "---" . PHP_EOL;
+    }
 }
 PHP;
     }

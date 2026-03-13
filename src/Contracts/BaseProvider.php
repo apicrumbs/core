@@ -67,4 +67,12 @@ abstract class BaseProvider implements ProviderInterface
     {
         return [];
     }
+
+    /**
+     * Standardised Versioning (Can be overridden by Registry)
+     */
+    public function getVersion(): string 
+    {
+        return '1.0.0';
+    }
 }

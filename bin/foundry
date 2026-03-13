@@ -4,14 +4,10 @@
 // LIVE ONLY: 
 require __DIR__ . '/../../../../vendor/autoload.php';
 
-
 $args = $argv;
 $command = $args[1] ?? 'help';
 
 switch ($command) {
-    case 'setup:ssl':
-        (new \ApiCrumbs\Core\Commands\SslSetupCommand())->handle();
-        break;
     case 'make':
         (new \ApiCrumbs\Core\Commands\MakeCommand())->handle($args);
         break;
@@ -21,11 +17,20 @@ switch ($command) {
     case 'list':
         (new \ApiCrumbs\Core\Commands\ListCommand())->handle($args);
         break;
+    case 'list:providers':
+        (new \ApiCrumbs\Core\Commands\ListProvidersCommand())->handle();
+        break;
+    case 'list:agents':
+        (new \ApiCrumbs\Core\Commands\ListAgentsCommand())->handle();
+        break;
+    case 'list:drivers':
+        (new \ApiCrumbs\Core\Commands\ListDriversCommand())->handle();
+        break;
     case 'linter':
-        (new \ApiCrumbs\Core\Commands\LinterCommand())->handle();
+        (new \ApiCrumbs\Core\Commands\LinterCommand())->handle($args);
         break;
     case 'update':
-        (new \ApiCrumbs\Core\Commands\UpdateCommand())->handle($argv);
+        (new \ApiCrumbs\Core\Commands\UpdateCommand())->handle($args);
         break;
     case 'logs':
         (new \ApiCrumbs\Core\Commands\LogsCommand())->handle($args);
@@ -34,8 +39,37 @@ switch ($command) {
         (new \ApiCrumbs\Core\Commands\PreviewCommand())->handle($args);
         break;
     case 'setup:all':
-        // The "Onboarding Master": Runs SSL, Env, and Doctor in sequence
-        (new SetupAllCommand())->handle();
+        (new \ApiCrumbs\Core\Commands\SetupAllCommand())->handle();
+        break;
+   case 'setup:ssl':
+        (new \ApiCrumbs\Core\Commands\SslSetupCommand())->handle();
+        break;        
+    case 'setup:env':
+        (new \ApiCrumbs\Core\Commands\EnvSetupCommand())->handle();
+        break;
+    case 'doctor':
+        (new \ApiCrumbs\Core\Commands\DoctorCommand())->handle();
+        break;
+    case 'auth:check':
+        (new \ApiCrumbs\Core\Commands\AuthCheckCommand())->handle();
+        break;
+    case 'make:provider':
+        (new \ApiCrumbs\Core\Commands\MakeProviderCommand())->handle($args);
+        break;
+    case 'make:agent':
+        (new \ApiCrumbs\Core\Commands\MakeAgentCommand())->handle($args);
+        break;
+    case 'make:driver':
+        (new \ApiCrumbs\Core\Commands\MakeDriverCommand())->handle($args);
+        break;
+    case 'registry:list':
+        (new \ApiCrumbs\Core\Commands\RegistryListCommand())->handle($args);
+        break;
+    case 'use:driver':
+        (new \ApiCrumbs\Core\Commands\UseDriverCommand())->handle($args);
+        break;
+    case 'graph':
+        (new \ApiCrumbs\Core\Commands\GraphCommand())->handle();
         break;
     default:
         renderHelp();
@@ -46,14 +80,43 @@ function renderHelp()
 {
     echo "\e[1;36m🍪 ApiCrumbs Foundry CLI\e[0m\n";
     echo "Usage: php foundry [command] [options]\n\n";
-    echo "\e[1mOnboarding:\e[0m\n";
-    echo "  setup:all      Run full environment setup (SSL + .env + Doctor)\n";
-    echo "  setup:ssl      Solve the common ``URL error 60`` issue on Windows/XAMPP\n";
-    echo "  doctor         Check system health and XAMPP SSL status\n\n";
-    echo "\e[1mRegistry:\e[0m\n";
-    echo "  update         Sync local 'Crumbs' with remote Registry (--dry-run available)\n";
-    echo "  graph          View dependency lineage (--mermaid available)\n\n";
-    echo "\e[1mDevelopment:\e[0m\n";
-    echo "  make [Name]    Scaffold a new Provider (--csv|--pro flags available)\n";
-    echo "  linter         Validate architecture and key naming consistency\n";
+    echo "\e[1m1. Environment & Setup (The Foundation):\e[0m\n";
+    echo "Commands ensure the local PHP environment is \"AI-Ready\" and XAMPP-compatible.\n\n";
+
+    echo "  setup:all                       Run full environment setup (SSL + .env + Doctor)\n";
+    echo "  setup:ssl                       Download the latest cacert.pem to the project root to fix cURL error 60\n";
+    echo "  setup:env                       Generate a boilerplate .env with placeholders for CH, HMRC, and LLM keys\n";
+    echo "  auth:check                      Pings Companies House, HMRC, and OpenAI to verify your credentials\n";
+    echo "  doctor                          Check system health and XAMPP SSL status\n\n";
+
+    
+    echo "\e[1m2. Provider Management\e[0m\n";
+    echo "Commands for scaffolding and auditing data connectors (API and CSV).\n\n";
+    echo "  make:provider [Name]            Scaffold a new Provider (--free or --pro or --csv flags available)\n";
+    echo "  list:providers                  Show which Providers are active, their current versions, and their Sponsoware tier\n\n";
+
+    echo "\e[1m3. Agent Management\e[0m\n";
+    echo "Commands for building and testing expert reasoning modules.\n\n";
+    echo "  make:agent [Name]               Scaffold an agent and asks for its getRequiredCrumbs()\n";
+    echo "  list:agents                     Lists installed agents and their required data dependencies\n\n";
+
+    echo "\e[1m4. Driver Management\e[0m\n";
+    echo "Commands for managing how data reaches the LLMs.\n\n";
+    echo "  make:driver [Name]              Scaffold a driver and asks for its getRequiredCrumbs()\n";
+    echo "  list:drivers                    Shows installed drivers (OpenAI, Gemini, Hardened, Caching)\n";
+    echo "  use:driver [DriverID]           Sets the default global LLM driver in your .env\n\n";
+
+    echo "\e[1m5. Registry & Deployment\e[0m\n";
+    echo "Commands for syncing with the remote repositories.\n\n";
+    echo "  update                          Sync local 'Crumbs' with remote Registry (--dry-run available)\n";
+    echo "  list                            Show which Providers, Agents, and Drivers are active, their current versions, and their Sponsoware tier\n";
+    echo "  registry:list                   Show which Providers, Agents, and Drivers are available to download\n";
+    echo "  install [type] [id]             Download a free provider, agent or driver\n\n";
+    
+    echo "\e[1m6. Performance & Quality\e[0m\n";
+    echo "Commands for performance and quality checks.\n\n";
+    echo "  linter [--strict]               Validate architecture and key naming consistency\n";
+    echo "  logs [--clear]                  Shows the \"Success vs Failure\" health dashboard\n";
+    echo "  graph [--mermaid]               Visualises the dependency tree of your current installation\n";
+
 }

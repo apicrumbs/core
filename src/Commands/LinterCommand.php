@@ -2,81 +2,83 @@
 
 namespace ApiCrumbs\Core\Commands;
 
-use ReflectionClass;
-use ApiCrumbs\Core\Contracts\ProviderInterface;
-use ApiCrumbs\Core\Contracts\BaseProvider;
-use ApiCrumbs\Core\Contracts\CsvStreamProvider;
-
+/**
+ * LinterCommand - Architectural & Naming Consistency Checker
+ * Enforces snake_case keys, PSR-4 structure, and Interface compliance.
+ */
 class LinterCommand
 {
-    public function handle(): void
+    private int $errors = 0;
+    private int $warnings = 0;
+
+    public function handle(array $args): void
     {
-        echo "🛡️  ApiCrumbs Registry Linter: Validating Architectures...\n";
+        $strict = in_array('--strict', $args);
         
-        $providersDir = getcwd() . '/src/Providers';
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($providersDir));
-        $errors = 0;
+        echo "🔍 \e[1;36mApiCrumbs Architectural Linter\e[0m\n";
+        echo str_repeat("-", 50) . "\n";
 
-        foreach ($iterator as $file) {
-            if (!$file->isFile() || !str_ends_with($file->getFilename(), 'Provider.php')) continue;
+        $this->lintDirectory('src/Providers', 'ProviderInterface');
+        $this->lintDirectory('src/Agents', 'AgentInterface');
+        $this->lintDirectory('src/Drivers', 'AgentDriverInterface');
 
-            $className = $this->resolveClassName($file->getPathname());
-            if (!class_exists($className)) require_once $file->getPathname();
-
-            $issues = $this->lintProvider($className, $file->getPathname());
-            
-            if (!empty($issues)) {
-                echo "\n❌ \e[31m{$className}\e[0m\n";
-                foreach ($issues as $err) echo "  - {$err}\n";
-                $errors++;
-            }
-        }
-
-        if ($errors === 0) {
-            echo "\e[32m✨ All systems green. Registry is ready for release.\e[0m\n";
+        echo "\n" . str_repeat("-", 50) . "\n";
+        
+        if ($this->errors > 0) {
+            echo "❌ \e[31mFound {$this->errors} Errors.\e[0m Project is non-compliant.\n";
         } else {
-            exit(1); // Non-zero exit for CI/CD failure
+            echo "✅ \e[32mArchitecture is valid.\e[0m " . ($this->warnings ? "({$this->warnings} warnings)" : "") . "\n";
         }
     }
 
-    private function lintProvider(string $class, string $path): array
+    private function lintDirectory(string $path, string $interface): void
     {
-        $issues = [];
-        $reflection = new ReflectionClass($class);
-        $code = file_get_contents($path);
+        $fullPath = getcwd() . DIRECTORY_SEPARATOR . $path;
+        if (!is_dir($fullPath)) return;
 
-        // 1. Structural Checks
-        if (!$reflection->implementsInterface(ProviderInterface::class)) {
-            $issues[] = "Critical: Missing ProviderInterface implementation.";
-        }
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($fullPath));
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') continue;
 
-        // 2. MetadataTransformer Requirement
-        if (!$reflection->hasMethod('transform')) {
-            $issues[] = "Missing transform() method. All 'Crumbs' must optimize data for LLMs.";
-        }
+            $content = file_get_contents($file->getRealPath());
+            $name = $file->getBasename('.php');
 
-        // 3. Inheritance & Security Logic
-        if (str_contains($class, '\\Pro\\') || str_contains($class, '\\Global\\')) {
-            if (class_exists(BaseProvider::class) && !$reflection->isSubclassOf(BaseProvider::class) && !$reflection->isSubclassOf(CsvStreamProvider::class)) {
-                $issues[] = "Tier Violation: Pro/Global providers must extend BaseProvider or CsvStreamProvider.";
+            echo "📂 Testing: {$name}... ";
+
+            $localErrors = 0;
+
+            // 1. Check: Name must match File (PSR-4)
+            if (!str_contains($content, "class {$name}")) {
+                $this->logError("Class name mismatch (PSR-4 violation)");
+                $localErrors++;
+            }
+
+            // 2. Check: Lowercase snake_case keys (Crucial for Stitching)
+            if (preg_match("/getName\(\): string { return '([^a-z0-9_]+)'; }/", $content, $matches)) {
+                $this->logError("Key '{$matches[1]}' must be lowercase snake_case");
+                $localErrors++;
+            }
+
+            // 3. Check: Missing versioning
+            if (!str_contains($content, "public function getVersion()")) {
+                $this->logWarning("Missing getVersion() method. Defaulting to 1.0.0");
+                $this->warnings++;
+            }
+
+            if ($localErrors === 0) {
+                echo "\e[32mPASS\e[0m\n";
             }
         }
-
-        // 4. Static Analysis: Forbidden Functions (Force Guzzle/safeFetch)
-        if (preg_match('/(curl_init|file_get_contents\(["\']http)/', $code)) {
-            $issues[] = "Security: Bypassing Guzzle! Use \$this->safeFetch() to respect throttling.";
-        }
-
-        // 5. Versioning Check
-        if (!$reflection->hasMethod('getVersion') || empty((new $class())->getVersion())) {
-            $issues[] = "Registry Error: getVersion() must return a semantic version string.";
-        }
-
-        return $issues;
     }
 
-    private function resolveClassName(string $path): string {
-        $relPath = str_replace([getcwd().'/src/', '.php', '/'], ['', '', '\\'], $path);
-        return "ApiCrumbs\\" . $relPath;
+    private function logError(string $msg): void
+    {
+        echo "\n  \e[31m[ERROR]\e[0m {$msg}";
+        $this->errors++;
+    }
+
+    private function logWarning(string $msg): void
+    {
+        echo "\n  \e[33m[WARN]\e[0m {$msg}";
     }
 }

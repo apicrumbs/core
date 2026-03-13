@@ -2,83 +2,64 @@
 
 namespace ApiCrumbs\Core\Commands;
 
+use GuzzleHttp\Client;
+
 class UpdateCommand
 {
-    private string $registryUrl = 'https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json';
+    private string $manifestUrl = 'https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json';
+    private string $registryBase = "https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/";
 
     public function handle(array $args): void
     {
         $isDryRun = in_array('--dry-run', $args);
-        echo $isDryRun ? "🔍 [DRY RUN] Comparing Registry...\n" : "📡 Syncing Registry...\n";
+        echo "🔄 \e[1;36mChecking Registry for Updates...\e[0m\n";
 
-        // 1. Fetch Remote Manifest
-        $remoteJson = @file_get_contents($this->registryUrl);
-        if (!$remoteJson) {
-            echo "\e[31m❌ Error: Cannot reach remote registry manifest.\e[0m\n";
-            return;
-        }
-        $remoteManifest = json_decode($remoteJson, true);
+        $manifest = $this->fetchManifest();
+        $categories = ['providers', 'agents', 'drivers'];
+        $updatesFound = 0;
 
-        // 2. Scan Local Providers
-        $localProviders = $this->scanLocalProviders();
+        foreach ($categories as $cat) {
+            foreach ($manifest[$cat] as $id => $item) {
+                $localPath = getcwd() . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $item['install_path']);
 
-        foreach ($remoteManifest['providers'] as $id => $meta) {
-            $remoteVer = $meta['version'];
-            $localVer = $localProviders[$id]['version'] ?? '0.0.0';
-            $targetPath = $this->resolvePath($meta['class']);
+                if (file_exists($localPath)) {
+                    $localVersion = $this->extractLocalVersion($localPath);
+                    
+                    if (version_compare($localVersion, $item['version'], '<')) {
+                        $updatesFound++;
+                        echo "  ✨ Update Available: \e[1m{$id}\e[0m (v{$localVersion} -> v{$item['version']})\n";
 
-            // 3. Version Comparison
-            if (version_compare($remoteVer, $localVer, '>')) {
-                echo "📦 Update available for [\e[1m{$id}\e[0m]: {$localVer} -> \e[32m{$remoteVer}\e[0m\n";
-
-                if ($isDryRun) continue;
-
-                $this->performAtomicUpdate($id, $meta['download_url'], $targetPath, $remoteVer);
+                        if (!$isDryRun) {
+                            $this->performUpgrade($item, $localPath);
+                        }
+                    }
+                }
             }
         }
 
-        echo "\e[32m✨ Sync complete.\e[0m\n";
+        echo $updatesFound === 0 ? "✅ \e[32mAll modules up to date.\e[0m\n" : "\n🚀 \e[32mSync complete.\e[0m\n";
     }
 
-    private function performAtomicUpdate($id, $url, $path, $version): void
+    private function extractLocalVersion(string $path): string
     {
-        $backup = $path . '.bak';
-        if (file_exists($path)) copy($path, $backup);
-
-        echo "   📥 Downloading {$version}... ";
-
-        if (@copy($url, $path)) {
-            echo "\e[32mDone\e[0m\n";
-            if (file_exists($backup)) unlink($backup);
-        } else {
-            echo "\e[31mFailed\e[0m\n";
-            if (file_exists($backup)) {
-                rename($backup, $path);
-                echo "   \e[33mRestored from backup.\e[0m\n";
-            }
+        $content = file_get_contents($path);
+        if (preg_match("/public function getVersion\(\): string { return '(.+?)'; }/", $content, $matches)) {
+            return $matches[1];
         }
+        return '0.0.0';
     }
 
-    private function scanLocalProviders(): array
+    private function performUpgrade(array $item, string $path): void
     {
-        $found = [];
-        $dir = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(getcwd() . '/src/Providers'));
-        
-        foreach ($dir as $file) {
-            if (!$file->isFile() || !str_ends_with($file->getFilename(), 'Provider.php')) continue;
-            
-            // Reflect to get version without executing full API logic
-            $content = file_get_contents($file->getPathname());
-            if (preg_match("/public function getVersion\(\): string\s*{\s*return ['\"](.*?)['\"];\s*}/", $content, $matches)) {
-                $id = strtolower(str_replace('Provider.php', '', $file->getFilename()));
-                $found[$id] = ['version' => $matches[1]];
-            }
-        }
-        return $found;
+        $sourceUrl = $this->registryBase . $item['install_path'];        
+        $content = file_get_contents($sourceUrl);
+        file_put_contents($path, $content);
+        echo "    📦 \e[32mUpgraded {$item['name']}\e[0m\n";
     }
 
-    private function resolvePath(string $class): string
+    private function fetchManifest(): array
     {
-        return str_replace(['ApiCrumbs\\', '\\'], ['src/', '/'], $class) . '.php';
+        $manifestJson = @file_get_contents("{$this->manifestUrl}");
+        return json_decode($manifestJson, true);
     }
 }

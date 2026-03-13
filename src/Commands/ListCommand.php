@@ -2,40 +2,70 @@
 
 namespace ApiCrumbs\Core\Commands;
 
+/**
+ * ListCommand - Local Inventory Auditor
+ * Scans the src/ directory to display installed modules and their tiers.
+ */
 class ListCommand
 {
-    private string $manifestUrl = "https://raw.githubusercontent.com/apicrumbs/registry/refs/heads/main/manifest.json";
-
     public function handle(array $args): void
     {
-        echo "\e[1;34m🔍 Fetching Crumb Registry...\e[0m\n\n";
+        echo "📂 \e[1;36mApiCrumbs Local Inventory\e[0m\n";
+        echo str_repeat("-", 55) . "\n";
 
-        $json = @file_get_contents($this->manifestUrl);
-        if (!$json) {
-            echo "\e[31m❌ Error: Could not connect to the Registry.\e[0m\n";
-            exit(1);
-        }
+        $this->listModules('providers', 'src/Providers');
+        $this->listModules('agents', 'src/Agents');
+        $this->listModules('drivers', 'src/Drivers');
 
-        $manifest = json_decode($json, true);
+        echo "\n\e[36m💡 Tip: Run 'foundry update' to check for newer versions.\e[0m\n";
+    }
+
+    private function listModules(string $label, string $path): void
+    {
+        $fullPath = getcwd() . DIRECTORY_SEPARATOR . $path;
         
-        // Table Header
-        echo str_pad("TIER", 8) . str_pad("ID", 25) . str_pad("NAME", 20) . "CAPABILITIES\n";
-        echo str_repeat("-", 80) . "\n";
+        echo "\n\e[1m[" . strtoupper($label) . "]\e[0m\n";
 
-        foreach ($manifest['providers'] as $p) {
-            $isPro = ($p['tier'] === 'pro');
-            
-            // Color Logic
-            $tierTag = $isPro ? "\e[33m[PRO]\e[0m  " : "\e[36m[FREE]\e[0m ";
-            $idColor = $isPro ? "\e[90m" : "\e[32m"; // Grey out Pro IDs, Green for Free
-            
-            echo str_pad($tierTag, 17) . 
-                 str_pad($idColor . $p['id'] . "\e[0m", 34) . 
-                 str_pad($p['name'], 20) . 
-                 "\e[2m" . $p['capabilities'] . "\e[0m\n";
+        if (!is_dir($fullPath)) {
+            echo "  \e[2m(No modules installed in this category)\e[0m\n";
+            return;
         }
 
-        echo "\n\e[1mUsage:\e[0m  php foundry install weather/open-meteo\n";
-        echo "\e[1mPro:\e[0m    https://github.com\n\n";
+        // Recursive directory iterator to find all PHP classes
+        $directory = new \RecursiveDirectoryIterator($fullPath);
+        $iterator = new \RecursiveIteratorIterator($directory);
+        $files = new \RegexIterator($iterator, '/^.+\.php$/i', \RecursiveRegexIterator::GET_MATCH);
+
+        $found = false;
+        foreach ($files as $file) {
+            $content = file_get_contents($file[0]);
+            $name = basename($file[0], '.php');
+            
+            // Extract Version and Tier from the class content
+            $version = $this->pluck($content, "getVersion") ?: '1.0.0';
+            $tier = $this->guessTier($file[0]);
+
+            $tierColor = $tier === 'pro' ? "\e[34m" : ($tier === 'global' ? "\e[33m" : "\e[32m");
+            
+            printf("  %-25s | v%-8s | %s%s\e[0m\n", $name, $version, $tierColor, strtoupper($tier));
+            $found = true;
+        }
+
+        if (!$found) echo "  \e[2m(Empty)\e[0m\n";
+    }
+
+    private function pluck(string $content, string $method): ?string
+    {
+        if (preg_match("/public function {$method}\(\): string { return '(.+?)'; }/", $content, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    private function guessTier(string $path): string
+    {
+        if (str_contains($path, 'Pro')) return 'pro';
+        if (str_contains($path, 'Global')) return 'global';
+        return 'free';
     }
 }

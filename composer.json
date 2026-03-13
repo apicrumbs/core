@@ -6,7 +6,9 @@
     "autoload": {
         "psr-4": {
             "ApiCrumbs\\Core\\": "src/",
-            "ApiCrumbs\\Providers\\": "src/Providers/"
+            "ApiCrumbs\\Providers\\": "src/Providers/",
+            "ApiCrumbs\\Agents\\": "src/Agents/",
+            "ApiCrumbs\\Drivers\\": "src/Drivers/"
         }
     },
     "bin": [

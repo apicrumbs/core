@@ -7,6 +7,14 @@ use Generator;
 
 abstract class CsvStreamProvider implements ProviderInterface
 {
+    /**
+     * Standardised Versioning (Can be overridden by Registry)
+     */
+    public function getVersion(): string 
+    {
+        return '1.0.0';
+    }
+    
     /** 
      * Define header mapping: ['llm_key' => 'CSV Header Name'] 
      */

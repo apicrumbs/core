@@ -12,6 +12,14 @@ abstract class BaseAgentDriver implements AgentDriverInterface
 {
     protected Client $client;
 
+    /**
+     * Standardised Versioning (Can be overridden by Registry)
+     */
+    public function getVersion(): string 
+    {
+        return '1.0.0';
+    }
+
     public function __construct(array $config = [])
     {
         // 1. THE XAMPP FIX: Auto-detect local CA bundle from 'foundry setup:ssl'
